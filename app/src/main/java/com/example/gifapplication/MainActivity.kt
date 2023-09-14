@@ -2,6 +2,10 @@ package com.example.gifapplication
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
@@ -30,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 class MainActivity : AppCompatActivity(),GifOnClickListener {
@@ -151,6 +156,12 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
                 }
             }
         }
+        view.findViewById<Button>(R.id.btnShare).setOnClickListener {
+            CoroutineScope(Job()+Dispatchers.IO).launch {
+                shareGIF(mContext,gifResponse.images.originalImg.url,gifResponse.title)
+            }
+        }
+
         mDialog.show()
     }
 
@@ -209,6 +220,15 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
 
     }
 
-
-
+    private fun shareGIF(context: Context, imageUrlOrGifUrl: String, text: String) {
+        val uri = Uri.parse(imageUrlOrGifUrl)
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "image/webp"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            //putExtra(Intent.EXTRA_TEXT, text)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share using"))
+    }
 }

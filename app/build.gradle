@@ -58,4 +58,6 @@ dependencies {
     annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
     implementation 'com.github.bumptech.glide:okhttp3-integration:4.4.0'
+    implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.23'
+
 }

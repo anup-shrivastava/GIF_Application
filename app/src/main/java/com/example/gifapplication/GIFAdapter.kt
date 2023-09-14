@@ -23,7 +23,7 @@ class GIFAdapter(private var gifResponse: ArrayList<DataObject>, private var mCo
 
     override fun onBindViewHolder(holder: MyViewHolder, position: Int) {
         val gif = gifResponse[position]
-        Glide.with(mContext).load(gif.images.originalImg.url).placeholder(R.drawable.android_gif).into(holder.ivGIF)
+        Glide.with(holder.itemView.context).load(gif.images.originalImg.url).placeholder(R.drawable.android_gif).into(holder.ivGIF)
         holder.itemView.setOnClickListener {
             gifOnClickListener.onGifClick(gif)
         }
