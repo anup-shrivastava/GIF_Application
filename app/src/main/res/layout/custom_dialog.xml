@@ -22,7 +22,7 @@
             android:layout_below="@id/tvTitle"
             android:padding="10dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="150dp"/>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_below="@id/ivGIF"
@@ -32,17 +32,10 @@
             android:layout_marginHorizontal="20dp"
             android:layout_height="wrap_content">
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDownload"
-                android:layout_margin="5dp"
-                android:text="Download"
-                android:layout_width="wrap_content"
-                android:layout_marginHorizontal="10dp"
-                android:layout_height="wrap_content"/>
-            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnShare"
                 android:layout_margin="5dp"
                 android:layout_marginHorizontal="10dp"
-                android:text="Share"
+                android:text="Share / Download"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
         </LinearLayout>

@@ -10,6 +10,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.swiperefreshlayout.widget.CircularProgressDrawable
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.request.RequestOptions
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -75,5 +78,19 @@ class GIFViewModel(application: Application):AndroidViewModel(application) {
             ActivityCompat.requestPermissions(context, arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE), PERMISSION_REQUEST_CODE)
             true
         }
+    }
+
+    fun loadPlaceholderDrawable(context: Context):CircularProgressDrawable{
+        val circularProgressDrawable = CircularProgressDrawable(context)
+        circularProgressDrawable.strokeWidth = 5f
+        circularProgressDrawable.centerRadius = 30f
+        circularProgressDrawable.start()
+        return circularProgressDrawable
+    }
+
+    fun requestOptionsForGIF(): RequestOptions {
+        return RequestOptions()
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .override(150, 150)
     }
 }

@@ -6,9 +6,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.CircularProgressDrawable
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 
-class GIFAdapter(private var gifResponse: ArrayList<DataObject>, private var mContext:Context,private var gifOnClickListener: GifOnClickListener) : RecyclerView.Adapter<GIFAdapter.MyViewHolder>() {
+class GIFAdapter(private var gifResponse: ArrayList<DataObject>, private var viewModel:GIFViewModel,private var gifOnClickListener: GifOnClickListener) : RecyclerView.Adapter<GIFAdapter.MyViewHolder>() {
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MyViewHolder {
@@ -23,7 +25,12 @@ class GIFAdapter(private var gifResponse: ArrayList<DataObject>, private var mCo
 
     override fun onBindViewHolder(holder: MyViewHolder, position: Int) {
         val gif = gifResponse[position]
-        Glide.with(holder.itemView.context).load(gif.images.originalImg.url).placeholder(R.drawable.android_gif).into(holder.ivGIF)
+        Glide.with(holder.itemView.context).load(gif.images.originalImg.url)
+            .apply(viewModel.requestOptionsForGIF())
+            .thumbnail(0.25f)
+            .placeholder(viewModel.loadPlaceholderDrawable(holder.itemView.context))
+            .error(R.drawable.error_gif)
+            .into(holder.ivGIF)
         holder.itemView.setOnClickListener {
             gifOnClickListener.onGifClick(gif)
         }

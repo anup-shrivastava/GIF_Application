@@ -1,16 +1,13 @@
 package com.example.gifapplication
 
+import android.app.Activity
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.net.Uri
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Environment
 import android.os.Handler
 import android.provider.MediaStore
 import android.util.Log
@@ -21,6 +18,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -34,8 +32,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
 class MainActivity : AppCompatActivity(),GifOnClickListener {
     private lateinit var mContext:Context
@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
     private lateinit var tvError:TextView
     private val apiHandler = Handler()
     private var apiRunnable: Runnable? = null
+    private val SHARE_GIF_CODE = 123
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -91,6 +92,17 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == SHARE_GIF_CODE) {
+            if (resultCode == Activity.RESULT_OK) {
+                Toast.makeText(this, "GIF shared successfully", Toast.LENGTH_SHORT).show()
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                Toast.makeText(this, "Sharing canceled", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun getMVVM(){
         viewModel.getGIFDetails().observe(this, Observer {
             if (it != null){
@@ -123,7 +135,7 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
 
     private fun setData(gifResponse: ArrayList<DataObject>) {
         val gridLayoutManager = GridLayoutManager(this,2)
-        val adapter = GIFAdapter(gifResponse,mContext,this)
+        val adapter = GIFAdapter(gifResponse,viewModel,this)
         rvGIF.layoutManager = gridLayoutManager
         rvGIF.adapter = adapter
         adapter.notifyDataSetChanged()
@@ -143,32 +155,41 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
         mDialog.setCancelable(true)
         val ivGif:ImageView = view.findViewById(R.id.ivGIF)
         view.findViewById<TextView>(R.id.tvTitle).text = gifResponse.title
-        Glide.with(this).load(gifResponse.images.originalImg.url).placeholder(R.drawable.android_gif).into(ivGif)
-        view.findViewById<Button>(R.id.btnDownload).setOnClickListener {
+        Glide.with(this).load(gifResponse.images.originalImg.url)
+            .apply(viewModel.requestOptionsForGIF())
+            .placeholder(viewModel.loadPlaceholderDrawable(mContext))
+            .into(ivGif)
+        view.findViewById<Button>(R.id.btnShare).setOnClickListener {
             progressLay.visibility = View.VISIBLE
             if (viewModel.checkPermission(mContext)){
-                downloadGif(gifResponse)
+                shareGIF(mContext,gifResponse)
                 mDialog.dismiss()
             } else {
                 if (viewModel.requestPermission(this)){
-                    downloadGif(gifResponse)
+                    shareGIF(mContext,gifResponse)
                     mDialog.dismiss()
                 }
             }
         }
-        view.findViewById<Button>(R.id.btnShare).setOnClickListener {
-            CoroutineScope(Job()+Dispatchers.IO).launch {
-                shareGIF(mContext,gifResponse.images.originalImg.url,gifResponse.title)
-            }
-        }
-
         mDialog.show()
     }
-
-    private fun downloadGif(gifResponse: DataObject) {
+    private fun shareGIF(context: Context, gifResponse:DataObject) {
         CoroutineScope(Job() + Dispatchers.IO).launch {
+            val originalImageUrl = gifResponse.images.originalImg.url
+            val resizedImageUrl = resizeImage(originalImageUrl, 480, 480)
+            val downloadDirectory = File(GIFConstants.ROOT_PATH)
+            if (!downloadDirectory.exists()) {
+                downloadDirectory.mkdirs()
+            }
+            val fileName = "${gifResponse.userName}.gif"
+            val filePath = "${GIFConstants.ROOT_PATH}/$fileName"
+
+            val existingFile = Files.deleteIfExists(Paths.get(filePath))
+//            if (existingFile.exists()) {
+//                existingFile.delete()
+//            }
             Glide.with(mContext)
-                .downloadOnly().load(gifResponse.images.originalImg.url)
+                .downloadOnly().load(resizedImageUrl)
                 .into(object : CustomTarget<File>() {
                     override fun onResourceReady(resource: File, transition: Transition<in File>?) {
                         try {
@@ -176,12 +197,12 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
                             val contentValues = ContentValues().apply {
                                 put(
                                     MediaStore.MediaColumns.DISPLAY_NAME,
-                                    "${gifResponse.userName}.gif"
+                                    fileName
                                 )
                                 put(MediaStore.MediaColumns.MIME_TYPE, fileType)
                                 put(
                                     MediaStore.MediaColumns.RELATIVE_PATH,
-                                    Environment.DIRECTORY_DOWNLOADS
+                                    GIFConstants.ROOT_PATH
                                 )
                             }
                             val contentResolver = mContext.contentResolver
@@ -195,14 +216,22 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
                                                 inputStream.copyTo(outPutStream)
                                             }
                                         }
-                                        runOnUiThread {
-                                            Toast.makeText(
-                                                mContext,
-                                                "GIF downloaded successfully",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
                                     }
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            mContext,
+                                            "GIF downloaded successfully",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    val shareIntent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        type = "image/webp"
+                                        putExtra(Intent.EXTRA_STREAM, imageUri)
+                                        putExtra(Intent.EXTRA_TEXT, gifResponse.title)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    startActivityForResult(Intent.createChooser(shareIntent, "Share using"),SHARE_GIF_CODE)
                                 }
                             }
                         } catch (ex: Exception) {
@@ -220,15 +249,7 @@ class MainActivity : AppCompatActivity(),GifOnClickListener {
 
     }
 
-    private fun shareGIF(context: Context, imageUrlOrGifUrl: String, text: String) {
-        val uri = Uri.parse(imageUrlOrGifUrl)
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            type = "image/webp"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            //putExtra(Intent.EXTRA_TEXT, text)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(shareIntent, "Share using"))
+    private fun resizeImage(originalImageUrl: String, width: Int, height: Int): String {
+        return "$originalImageUrl?w=$width&h=$height" // Append query parameters to resize the image
     }
 }
